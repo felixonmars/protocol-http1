@@ -52,6 +52,39 @@
 <p>Please browse the <a href="source/index.html">source code index</a> or refer to the guides below.</p>
 
 
+<pre><code class="language-ruby">require 'async'
+require 'async/io/stream'
+require 'async/http/endpoint'
+require 'protocol/http1/connection'
+
+Async do
+	endpoint = Async::HTTP::Endpoint.parse(&quot;https://www.google.com/search?q=kittens&quot;, alpn_protocols: [&quot;http/1.1&quot;])
+	
+	peer = endpoint.connect
+	
+	puts &quot;Connected to #{peer} #{peer.remote_address.inspect}&quot;
+	
+	# IO Buffering...
+	stream = Async::IO::Stream.new(peer)
+	client = Protocol::HTTP1::Connection.new(stream)
+	
+	def client.read_line
+		@stream.read_until(Protocol::HTTP1::Connection::CRLF) or raise EOFError
+	end
+	
+	puts &quot;Writing request...&quot;
+	client.write_request(&quot;www.google.com&quot;, &quot;GET&quot;, &quot;/search?q=kittens&quot;, &quot;HTTP/1.1&quot;, [[&quot;Accept&quot;, &quot;*/*&quot;]])
+	client.write_body(nil)
+	
+	puts &quot;Reading response...&quot;
+	response = client.read_response(&quot;GET&quot;)
+	
+	puts &quot;Got response: #{response.inspect}&quot;
+	
+	puts &quot;Closing client...&quot;
+	client.close
+end
+</code></pre>
 </section><section id="contributing"><h2>Contributing</h2>
 <ol>
 <li>Fork it</li>
